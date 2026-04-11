@@ -1,0 +1,39 @@
+.git
+.gitignore
+.github
+.vscode
+.idea
+.claude
+
+# Heavy stuff we never want in the build context
+train/
+val/
+Indian Food Images/
+data/
+docs/
+frontend/
+node_modules/
+
+# Python noise
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.venv
+backend/.venv
+
+# Tests and docs — not needed for the runtime image
+backend/tests/
+
+# Local env files
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+
+# Logs + build output
+*.log
+backend/backend.log
+frontend/dist
+frontend/.vite

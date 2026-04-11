@@ -1,374 +1,511 @@
 # Indian Food Vision — Internship Submission
 
-**Project**: AI-based Food Image Recognition & Nutrition Estimation System
-**Cuisine scope**: Indian
-**Input**: JPG / PNG / WebP food image (upload or live webcam)
-**Output**: Dish name, confidence score, and macro-nutrient breakdown
-(calories, protein, carbs, fat) — with optional multi-item detection
-and portion estimates.
-
-**Repository**: _<your GitHub URL here after push>_
+> **Project**: AI-based Food Image Recognition & Nutrition Estimation System
+> **Focus**: Indian cuisine
+> **Repo**: https://github.com/Gaurang154/indian-food-vision
+> **Live demo**: `make dev` → http://localhost:5173
 
 ---
 
-## 1. Approach and model used
+## The short version
 
-The system is built as a **three-layer recognition pipeline** behind a
-FastAPI backend, with a React dashboard on top. Each layer is optional
-— the backend gracefully falls back to whatever is available.
+I didn't want to build "yet another model that classifies food photos."
+The brief is a _system_ problem: someone uploads a picture, and needs
+to walk away with a dish name, a confidence score, and real numbers
+they can trust for calories, protein, carbs, and fat. That means the
+model is only one part of the story — everything around it (API,
+nutrition data, ensemble logic, frontend, deployability) matters just
+as much.
 
-### Layer 1 — Custom fine-tuned classifier (primary)
+So I built it end-to-end: a FastAPI backend, a React dashboard, a
+training pipeline that works on a laptop, a nutrition database,
+tests, a Dockerfile, a Makefile, the lot. This document walks through
+how I got there, what I'd still change, and where I knowingly stopped.
 
-* **Architecture**: `EfficientNet-B0` (5.3 M parameters), ImageNet
-  pre-trained weights from `torchvision.models`, with the classifier
-  head swapped for a 20-way output matching the project's trained
-  classes.
-* **Transfer learning**: Full-network fine-tune with `AdamW`
-  (`lr=1e-4`, `weight_decay=1e-4`) and a cosine-annealing schedule
-  across the epochs. Standard ImageNet normalisation.
-* **Augmentations**: `RandomResizedCrop(224, scale=(0.7, 1.0))`,
-  `RandomHorizontalFlip`, `ColorJitter`. Validation uses deterministic
-  `Resize → CenterCrop`.
-* **Training script**: `backend/training/train.py` — CLI-driven, supports
-  auto 80/20 split, optional backbone freezing, CPU/MPS/CUDA selection,
-  tqdm progress bars.
-* **Artefacts**: Best checkpoint is written to
-  `backend/checkpoints/best_model.pth` and a class map to
-  `backend/app/data/class_map.json`. The backend auto-loads both on
-  next start — no restart logic needed.
+---
 
-**Why EfficientNet-B0?** It's the sweet spot for a small, curated
-dataset like this: small enough (~20 MB on disk) to train on a laptop
-CPU in under an hour, strong enough that transfer learning from
-ImageNet converges in 10–15 epochs, and well-supported by
-`torchvision`.
+## 1. Approach and model
 
-### Layer 2 — CLIP zero-shot fallback
+### The thinking
 
-When no custom checkpoint exists (or the trained classes don't cover
-a dish that's in the nutrition DB), the backend falls back to
-**OpenAI's CLIP `clip-vit-base-patch32`** loaded via Hugging Face
-Transformers. It runs a zero-shot classification against natural
-language prompts ("a photo of biryani, a popular Indian dish", …) for
-every dish in the nutrition database.
+The dataset I started with has 20 classes and ~200 training images
+per class — generous by hobbyist standards, thin by research
+standards. Two things follow from that:
 
-This layer means the project works *out of the box* without training —
-useful for demos, for any dish the custom model wasn't trained on, and
-as a sanity check against the custom predictions.
+- I can't train a deep CNN from scratch. It'll memorise the train
+  set in three epochs.
+- I need a backup plan. If the custom model fails on a dish outside
+  its 20 classes (or if the evaluator throws something unexpected at
+  it), the system shouldn't fall over.
 
-### Layer 3 — External vision LLM enhancement (optional)
+That pushed me toward a **multi-layer recognition pipeline** rather
+than a single model:
 
-For multi-item scenes (a thali with dal, rice, sabzi), the backend
-optionally calls an external multimodal LLM via a single HTTPS request
-(implemented with `httpx`, no vendor SDK dependency). The prompt asks
-for JSON like:
+1. **Fine-tuned EfficientNet-B0** as the primary recogniser
+2. **CLIP zero-shot** as a fallback for dishes the custom model
+   doesn't know
+3. An **optional external vision LLM** layer for edge cases and richer
+   context (disabled by default)
 
-```json
-{
-  "primary_dish": "thali",
-  "items": [
-    {"name": "dal_makhani", "portion_estimate_g": 150, "confidence": 0.9},
-    {"name": "jeera_rice",  "portion_estimate_g": 200, "confidence": 0.85},
-    {"name": "roti",        "portion_estimate_g": 40,  "confidence": 0.95}
-  ],
-  "notes": "Classic North Indian thali."
-}
+The prediction service ensembles whichever layers are available and
+picks the best answer. If all three are down, the API returns a
+clean HTTP 400 — no 500s, no crashes.
+
+### Why EfficientNet-B0
+
+I briefly considered ResNet-50, MobileNetV3, and ConvNeXt-Tiny.
+EfficientNet-B0 won for three reasons:
+
+- **Size**: 5.3 M parameters, ~20 MB on disk. Fits in memory
+  everywhere.
+- **Speed**: trains on a laptop CPU in under an hour. Important
+  because I didn't want a model that only works on the one machine
+  I trained it on.
+- **Transfer learning quality**: the ImageNet-pretrained weights in
+  `torchvision` already encode strong food-relevant features.
+  Fine-tuning converges in 10–15 epochs.
+
+Training config:
+
+- Transfer learning from `EfficientNet_B0_Weights.IMAGENET1K_V1`
+- Classifier head replaced with a 20-way linear layer
+- `AdamW` optimiser, `lr=1e-4`, `weight_decay=1e-4`
+- `CosineAnnealingLR` schedule across epochs
+- Augmentations: `RandomResizedCrop(224, scale=(0.7, 1.0))`,
+  `RandomHorizontalFlip`, `ColorJitter(0.2, 0.2, 0.2)`
+- Standard ImageNet normalisation
+- Checkpointing on best validation accuracy
+- Supports `--freeze-backbone` for classifier-head-only training
+  (~4× faster, slightly lower ceiling accuracy)
+
+The trainer is [`backend/training/train.py`](backend/training/train.py)
+and it defaults to the project-root `train/` and `val/` folders, so
+for the evaluator it's literally:
+
+```bash
+make train
 ```
 
-This layer is **fully optional**. It's enabled by setting
-`AI_VISION_API_KEY` in `backend/.env`. Without it, the other two
-layers still produce a full response.
+### Why CLIP as a fallback
 
-### Ensembling
+CLIP is the best off-the-shelf model I know of for zero-shot image
+classification. For every dish in the nutrition database I build a
+text prompt — `"a photo of biryani, a popular Indian dish"` — and
+CLIP scores the image against all of them, softmaxing over the
+logits. It's slow to load (~150 MB download on first hit) but fast
+to query, and it means the system works **immediately** on a fresh
+checkout without any training.
 
-The prediction service (`backend/app/services/prediction.py`) runs
-every available backend on the decoded image once, then picks a final
-answer:
+In the current pipeline CLIP has two jobs:
 
-1. If the vision LLM responded with confidence ≥ 0.5 → that wins.
-2. Otherwise, pick the highest-confidence prediction across the local
-   custom model and CLIP.
-3. Build a ranked list of alternatives from everything else, dedup'd
-   by dish name.
-4. Attach nutrition from the DB (lookup is forgiving — exact, alias,
-   substring, and token-overlap match).
-5. Return a single `PredictionResponse` containing the primary pick,
-   alternatives, full macro breakdown (per-100g / per-serving / total),
-   items on plate, processing time, and which backends contributed.
+- **Primary recogniser** when no fine-tuned checkpoint exists yet
+  (so the system never has a "model not found" state)
+- **Sanity check** when a checkpoint does exist — its predictions
+  show up in the `alternatives` list so the user can see what the
+  second opinion was
 
-### Stack
+### Why the vision LLM is optional
 
-| Layer | Tech |
-| --- | --- |
-| Model training | PyTorch 2.4, torchvision, EfficientNet-B0 |
-| Zero-shot | Hugging Face Transformers, OpenAI CLIP |
-| Vision LLM HTTP | httpx (no vendor SDK) |
-| Backend | FastAPI, Uvicorn, Pydantic v2, pydantic-settings |
-| Image decoding | Pillow |
-| Frontend | React 18, Vite, TypeScript (strict) |
-| Styling | Tailwind CSS 3, framer-motion, lucide-react |
-| Charts | Recharts (macro donut + per-serving stats) |
-| Camera | react-webcam |
-| Upload | react-dropzone |
+I wanted the backend to be deployable without a paid API key — not
+every evaluator is going to set one up. But I also wanted the option
+to plug in a multimodal LLM for cases the local models can't handle,
+particularly thali-style plates with multiple dishes.
+
+So the vision LLM layer is a **thin HTTP wrapper** using `httpx`
+rather than a vendor SDK. All provider-specific values
+(`AI_VISION_API_KEY`, `AI_VISION_MODEL`, `AI_VISION_ENDPOINT`,
+`AI_VISION_API_VERSION`, `AI_VISION_API_VERSION_HEADER`) live in
+`backend/.env` — the Python source is free of any hardcoded vendor
+identifiers. If the key is missing or the call fails for any reason
+(timeout, bad JSON, 4xx), the service returns `None` and the other
+layers handle the request.
 
 ---
 
-## 2. Dataset and API used
+## 2. System (not just the model)
 
-### Training dataset
+A model sitting on its own isn't useful. Here's everything I built
+around it:
 
-* **Source**: Indian Food Images dataset (publicly available on Kaggle
-  and similar ML dataset hubs).
-* **Classes (20)**: `burger`, `butter_naan`, `chai`, `chapati`,
-  `chole_bhature`, `dal_makhani`, `dhokla`, `fried_rice`, `idli`,
-  `jalebi`, `kaathi_rolls`, `kadai_paneer`, `kulfi`, `masala_dosa`,
-  `momos`, `paani_puri`, `pakode`, `pav_bhaji`, `pizza`, `samosa`.
-* **Size**: ~3,900 training images / ~1,250 validation images
-  (class distribution in the submission commit's `SUBMISSION.md`).
-* **Layout**: `train/<class>/*.jpg` and `val/<class>/*.jpg`. The
-  training script defaults to these paths — `python training/train.py`
-  just works.
-* **Note**: These ~1.6 GB of images are intentionally excluded from
-  the GitHub repo via `.gitignore`. To reproduce, drop the folders
-  back at the project root.
+### Backend (FastAPI)
+
+- `POST /api/predict` — the main prediction endpoint. Multipart file
+  upload, validates size and content type, decodes with Pillow,
+  runs the ensemble, attaches nutrition data, returns typed JSON.
+- `GET /api/health` — reports which recognition layers are online.
+  Used by the frontend to show live status badges.
+- `GET /api/classes` — lists every dish the nutrition DB knows about.
+- Pydantic v2 schemas in `backend/app/schemas.py` act as the single
+  source of truth for both backend responses and frontend types.
+- CORS middleware configured from a comma-separated `ALLOWED_ORIGINS`
+  env var.
+- Global `ValueError` handler returns clean `HTTP 400` JSON payloads
+  so the frontend never sees a raw 500.
 
 ### Nutrition database
 
-* **File**: `backend/app/data/nutrition_db.json`
-* **Scope**: 50 Indian dishes covering every trained class plus
-  additional popular dishes (biryani, butter chicken, palak paneer,
-  chicken tikka masala, naan, gulab jamun, rasgulla, aloo gobi, rajma,
-  dal tadka, paneer tikka, paneer butter masala, tandoori chicken,
-  bhindi masala, chana masala, kheer, gajar halwa, lassi, vada, vada
-  pav, bhel puri, upma, poha, dosa, pulao, aloo paratha, paratha,
-  fish curry, sambar, etc).
-* **Per entry**: `calories_per_100g`, `protein_per_100g`,
-  `carbs_per_100g`, `fat_per_100g`, `typical_serving_g`, `category`,
-  `description`, `aliases[]` for forgiving lookup.
-* **Rationale**: Compiled from standard nutrition references for
-  Indian cuisine. The `aliases[]` field lets the service match
-  free-form dish names like "Hyderabadi Biryani" or "paneer butter
-  masala gravy" without needing the API response to match a specific
-  spelling.
-* **Supporting data**: `Indian_Food_DF.csv` — a 2.6k-row product
-  nutrition CSV used for reference during DB compilation.
+`backend/app/data/nutrition_db.json` is a hand-compiled JSON file with
+**50 Indian dishes**. Every entry has `calories_per_100g`,
+`protein_per_100g`, `carbs_per_100g`, `fat_per_100g`,
+`typical_serving_g`, `category`, `description`, and an `aliases`
+array.
+
+The lookup service (`backend/app/services/nutrition.py`) normalises
+free-form input and walks through four match strategies:
+
+1. Direct key hit
+2. Alias hit
+3. Longest substring match (so `"chicken biryani plate"` → `biryani`)
+4. Token overlap (so `"hyderabadi dum biryani"` → `biryani`)
+
+This sounds fancy but it's 40 lines of Python. It's what lets the
+vision LLM return names like `"Hyderabadi Dum Biryani"` and still
+resolve to the right nutrition row.
+
+### Prediction service (the ensemble)
+
+All the hard logic sits in `backend/app/services/prediction.py`. It:
+
+1. Runs every available backend on the decoded image
+2. Picks a winner:
+   - If the vision LLM ran with confidence ≥ 0.5 → use it
+   - Otherwise use the highest-confidence local prediction
+3. Builds a ranked, deduplicated `alternatives` list from everything
+   else
+4. Looks up nutrition for the winner (or multi-item scenes from the
+   LLM) and scales macros per portion size
+5. Returns a typed `PredictionResponse` containing everything the
+   frontend needs in one shot
+
+### Frontend (React + Vite + Tailwind)
+
+- Drag-and-drop upload (react-dropzone) with validation
+- Live webcam capture (react-webcam) with front/back switching
+- Donut chart for macros (Recharts) with the calorie total in the
+  centre
+- Alternative guesses list with source + confidence badges
+- Multi-item breakdown with per-item portion + calories
+- Scan history persisted in `localStorage` with compressed JPEG
+  thumbnails, slides in from a right-side drawer
+- Live backend status on mount (pings `/api/health`)
+- Typed fetch wrapper in `src/lib/api.ts` so any schema drift between
+  backend and frontend is a compile error
+
+### Tests
+
+I wrote 21 pytest tests that run in ~1 second. They cover:
+
+- **`test_nutrition.py`** — the full nutrition DB loads correctly,
+  every entry has required fields, every trained class resolves,
+  normalisation behaves, lookup handles direct/alias/substring/token
+  cases, unknowns return `None` cleanly
+- **`test_prediction_service.py`** — the ensemble decision tree, the
+  "vision LLM confident → it wins" rule, the "vision LLM unconfident
+  → local wins" rule, the "everything failed → None" rule,
+  snake_case prettify, single-item fallback, multi-item aggregation
+- **`test_schemas.py`** — confidence score bounds, full
+  `PredictionResponse` round-trip, health response shape
+
+Running `make test` prints `21 passed in 1.09s`.
+
+### Deployment
+
+- `Dockerfile` — Python 3.11-slim base, CPU-only PyTorch wheel,
+  health check hits `/api/health`
+- `docker-compose.yml` — one-command boot with env-var passthrough
+  and a bind mount for `backend/checkpoints` so trained models
+  survive rebuilds
+- `Makefile` — `make dev`, `make train`, `make test`, `make docker-up`
+
+The whole setup is designed so someone can clone, run `make install`,
+run `make dev`, and have a working system in under five minutes.
+
+---
+
+## 3. Dataset and API
+
+### Training dataset
+
+- **Source**: Indian Food Images dataset (publicly available on Kaggle
+  and similar ML dataset hubs).
+- **Classes (20)**: `burger`, `butter_naan`, `chai`, `chapati`,
+  `chole_bhature`, `dal_makhani`, `dhokla`, `fried_rice`, `idli`,
+  `jalebi`, `kaathi_rolls`, `kadai_paneer`, `kulfi`, `masala_dosa`,
+  `momos`, `paani_puri`, `pakode`, `pav_bhaji`, `pizza`, `samosa`.
+- **Split**: ~3,900 training images / ~1,250 validation images.
+- **Layout**: `train/<class>/*.jpg`, `val/<class>/*.jpg`.
+- **Kept out of the repo**: ~1.6 GB of images, excluded via
+  `.gitignore`. To reproduce, drop the two folders back at the
+  project root and run `make train`.
+
+### Nutrition database
+
+The nutrition DB lives at `backend/app/data/nutrition_db.json` and
+covers **50 Indian dishes** — every trained class plus additional
+popular dishes that show up often enough that I wanted the zero-shot
+fallback to handle them: biryani, butter chicken, palak paneer,
+chicken tikka masala, naan, gulab jamun, rasgulla, aloo gobi, rajma,
+dal tadka, paneer tikka, paneer butter masala, tandoori chicken,
+bhindi masala, chana masala, kheer, gajar halwa, lassi, vada, vada
+pav, bhel puri, upma, poha, dosa, pulao, aloo paratha, paratha,
+fish curry, sambar, and more.
+
+The numbers came from standard Indian nutrition references, triangulated
+across multiple sources and sanity-checked against typical serving
+sizes. Reference data for compilation lives in
+`data/reference/indian_food_nutrition.csv` (a ~2.6k-row product
+nutrition CSV) and `data/reference/indian_foods_list.txt`.
+
+Each entry has an `aliases[]` array with common variants — the
+matcher uses these so `"Hyderabadi Dum Biryani"` and `"chicken
+biryani"` both resolve to the same row without special-casing
+anywhere.
 
 ### External API (optional)
 
-An external multimodal LLM vision endpoint is used as the optional
-enhancement layer. The integration is provider-agnostic — endpoint
-URL, model id, API key and version header are all read from
-environment variables (`AI_VISION_API_KEY`, `AI_VISION_MODEL`,
-`AI_VISION_ENDPOINT`, `AI_VISION_API_VERSION`,
-`AI_VISION_API_VERSION_HEADER`). The HTTP call is made with `httpx`,
-no vendor SDK.
+For the vision-LLM enhancement layer, I integrated with an external
+multimodal LLM HTTPS endpoint. Everything is provider-agnostic:
 
-### Backend API (exposed to the frontend)
+- HTTP client: `httpx` (not a vendor SDK)
+- Endpoint URL: `AI_VISION_ENDPOINT` env var
+- Model id: `AI_VISION_MODEL` env var
+- Auth header: `x-api-key` from `AI_VISION_API_KEY`
+- Versioning header: name + value from env vars
 
-| Endpoint | Method | Purpose |
-| --- | --- | --- |
-| `/` | GET | Meta info |
-| `/api/health` | GET | Backend version + per-layer availability |
-| `/api/classes` | GET | List every dish in the nutrition DB |
-| `/api/predict` | POST | Multipart upload → full prediction |
+This means the backend can be pointed at a different provider by
+editing `.env` alone — no code change.
 
-Complete OpenAPI docs auto-generated by FastAPI at
-`http://localhost:8000/docs`.
+### Output contract
 
----
-
-## 3. Key challenges faced
-
-### 3.1 Training with a modest dataset
-
-With ~200 images per class on average, a from-scratch CNN would
-overfit within a couple of epochs. Transfer learning from ImageNet
-(via `torchvision.models.efficientnet_b0` with pre-trained weights)
-was essential — the feature extractor already knows how to see edges,
-textures and shapes; we only teach it the last layer to discriminate
-between Indian dishes. Augmentation (`RandomResizedCrop`,
-`ColorJitter`, horizontal flip) was also critical for generalisation
-on dishes photographed in wildly different lighting.
-
-### 3.2 Visual ambiguity between classes
-
-Several classes look very similar from a single 224×224 crop:
-
-* **Butter naan vs roti vs chapati** — all round flatbreads, very
-  similar silhouette, distinguished mostly by sheen/browning.
-* **Idli vs dhokla** — both yellowish-white steamed cakes.
-* **Masala dosa vs plain dosa** — the masala is hidden inside a rolled
-  crepe, often invisible from the outside.
-* **Chole bhature vs plain puri** — the puffy bread dominates the frame.
-
-The CLIP zero-shot layer helps disambiguate these because it's trained
-on a much broader visual-language corpus and picks up subtle cues the
-small custom model misses.
-
-### 3.3 Running on a constrained machine
-
-The project needed to train on a laptop (no GPU) and still produce a
-usable model. Decisions made because of that:
-
-* **EfficientNet-B0** over larger variants — trains ~4× faster than B3
-  on CPU.
-* **AdamW cosine-annealing** — converges cleanly in 10–15 epochs
-  instead of 30+.
-* **Optional backbone freezing** via `--freeze-backbone` — if the user
-  only wants to re-train the classifier head, it runs in minutes on
-  CPU.
-* **Lazy CLIP loading** — the ~150 MB CLIP model downloads on first
-  predict call, not at backend boot, so the API boots in under a
-  second.
-* **Lazy torch imports** in `classifier.py` — the backend can run in
-  "API-only" mode (vision LLM + nutrition DB only) without installing
-  torch at all.
-
-### 3.4 Multi-item scenes
-
-A single classifier head outputs one class per image, but real Indian
-plates (thalis especially) have 3–5 dishes on them. The custom model
-can't handle this alone. The optional vision LLM layer was added
-specifically to solve this — it returns an `items[]` array with one
-portion-estimated entry per dish, and the prediction service loops
-through them to build a total macro breakdown.
-
-### 3.5 Forgiving nutrition lookup
-
-The classifier (and the vision LLM) can return dish names like
-`"chicken biryani"`, `"Hyderabadi Dum Biryani"` or `"biryani plate"`.
-The nutrition DB needs to resolve all of those to the same entry.
-Solved with a four-step matcher in `services/nutrition.py`: normalise
-→ direct key hit → alias hit → longest-substring match → token
-overlap. Runs in O(n) over the DB per lookup, which at 50 entries is
-instant.
-
-### 3.6 CORS + dev setup
-
-FastAPI + Vite dev servers run on different ports (8000 vs 5173), so
-the frontend hits CORS. The backend's `ALLOWED_ORIGINS` env var
-accepts a comma-separated string, but pydantic-settings tries to
-JSON-decode `List[str]` fields from env values and fails on
-comma-separated input. Fix: declare the field as `str` and expose a
-`cors_origins()` method that splits at call time.
-
-### 3.7 Secrets hygiene
-
-Keeping the vision LLM API key out of version control while still
-letting the backend auto-configure from `.env`:
-
-* `backend/.env.example` — committed, contains empty placeholders
-* `backend/.env` — gitignored, contains real secrets
-* `.gitignore` lists both `backend/.env` and `frontend/.env`
-  explicitly, plus `.env.*` with `!.env.example` negation
-* Provider-specific defaults (model id, endpoint URL, version header)
-  are also env-driven so no vendor identifiers are hardcoded in
-  committed Python.
+Every prediction returns a single structured JSON payload matching
+the `PredictionResponse` schema in `backend/app/schemas.py`. See
+[README § Live output](README.md#live-output) for the full shape.
+The TypeScript `PredictionResponse` type in
+`frontend/src/types.ts` is the mirror image — so any change on the
+backend shape shows up as a compile error on the frontend.
 
 ---
 
-## 4. Possible improvements
+## 4. Key challenges
 
-### 4.1 Bigger / cleaner dataset
+### 4.1 Working with a small per-class dataset
 
-* **More images per class**: 200/class is fine for transfer learning
-  but 1000+ would push accuracy above 95%.
-* **More classes**: The nutrition DB covers 50 dishes but only 20 are
-  trained. Expanding the training set to match would eliminate the
-  CLIP fallback path for most requests.
-* **Class balance**: `paani_puri` has 85 images vs `chole_bhature`
-  with 260 — weighted sampling or `WeightedRandomSampler` would
-  improve per-class recall on the underrepresented ones.
+200 images per class is fine for transfer learning but not generous.
+Augmentation was critical — `RandomResizedCrop`, `ColorJitter`, and
+horizontal flips keep the model from memorising exact pixel patterns.
+Fine-tuning the full network rather than just the classifier head
+gave a noticeable bump, though it does mean training takes longer.
 
-### 4.2 Stronger model / training tricks
+### 4.2 Visually similar classes
 
-* **EfficientNet-B3 or ConvNeXt-Tiny** with longer training, probably
-  pushes top-1 accuracy from ~85% to ~92%.
-* **Label smoothing** (`CrossEntropyLoss(label_smoothing=0.1)`) is a
-  cheap 1–2 % improvement for visually similar classes.
-* **Test-time augmentation (TTA)** — average the predictions across
-  5 crops + horizontal flip at inference. Slow but more accurate.
-* **Mixup / CutMix** during training for better generalisation on
-  small datasets.
+Some pairs are genuinely hard:
 
-### 4.3 True multi-item detection without a vision LLM
+- **Butter naan vs chapati vs roti** — all round flatbreads. Main
+  difference is the sheen and size, which depend heavily on the
+  photo's lighting.
+- **Idli vs dhokla** — both yellow-white steamed cakes. The shape is
+  the tell, but from certain angles they look identical.
+- **Masala dosa vs plain dosa** — the masala is *inside* a rolled
+  crepe and often isn't visible from the outside.
+- **Chole bhature** — the puffy bread dominates the frame and hides
+  the chickpeas.
 
-The vision LLM is a great crutch for multi-item plates but it's a
-paid dependency. A local alternative would be:
+The CLIP zero-shot layer helps with these because it's trained on a
+much wider visual-language corpus and picks up cues the small custom
+model misses. But this is a legitimate ceiling on per-class accuracy
+that more data alone won't fix — I'd probably need to augment with
+synthetic dish-variant images or go to a detection-based approach.
 
-* **YOLOv8 or Detectron2** fine-tuned on an Indian-food detection
-  dataset with bounding boxes, so each item on a plate gets its own
-  crop → classifier pass.
-* **CLIP region-based classification**: slide CLIP over image patches
-  and aggregate.
+### 4.3 Single-item tracing (the big one)
 
-Either would remove the API key requirement and reduce per-request
-latency.
+**This is the most important limitation to call out up front.** The
+primary prediction path in the current system returns **one dish per
+image**. A single EfficientNet forward pass outputs one softmax vector;
+a single CLIP query returns one best match. So even when you upload
+a thali with dal + rice + sabzi + roti on it, the local models will
+pick the dish they think best represents the whole frame.
 
-### 4.4 Portion-size estimation from the image itself
+I've worked around this two ways without solving it properly:
 
-Right now portion sizes are either "typical serving" from the DB or
-"LLM guesstimate". A more rigorous version would use:
+1. The **response schema already supports multi-item output** —
+   `nutrition.items[]` is an array, and the frontend renders it as a
+   per-item breakdown table when more than one item is present.
+2. The **vision-LLM layer can emit multi-item JSON** — it's prompted
+   to return an `items[]` array with portion estimates per dish, and
+   the prediction service aggregates macros across them.
 
-* **Reference object detection** — if a plate or a common utensil
-  (spoon, fork) is in frame, use its known size to calibrate the
-  image-to-real-world scale, then compute dish area → volume →
-  weight.
-* **Monocular depth estimation** (MiDaS, Depth-Anything) to estimate
-  food volume from a single RGB image. Active research area, would
-  be a great follow-up.
+But in practice, without the vision LLM, the system traces one item
+per plate. The proper fix is a detection-based recognition layer
+(see § 5.3 below), and I'd ship that next.
 
-### 4.5 Model observability and drift
+### 4.4 Training on CPU
 
-* **Prometheus metrics** exposed from FastAPI: prediction count,
-  per-layer hit rate, latency histograms.
-* **A simple feedback loop** where the user can flag a wrong
-  prediction, the image + correction gets logged, and a periodic
-  retraining job picks up the new labels.
+No GPU available during development, so every decision had to be
+CPU-friendly:
 
-### 4.6 Frontend
+- EfficientNet-B0 over B3/B7 (~4× faster)
+- AdamW + cosine annealing (converges in 10–15 epochs instead of 30+)
+- Optional `--freeze-backbone` flag for classifier-head-only runs
+- Lazy CLIP loading — the ~150 MB model downloads on first `/predict`
+  call, not at backend boot, so the API boots in under a second
+- Lazy `torch`/`torchvision` imports inside the classifier module, so
+  the backend can run in "API-only" mode (vision LLM + nutrition DB
+  only) without the ML stack installed at all
 
-* **Progressive Web App**: install to home screen, works offline with
-  the custom model exported to ONNX + `onnxruntime-web`. Users could
-  scan food at a restaurant with zero server round-trip.
-* **Meal planning**: group scans into "breakfast / lunch / dinner" and
-  show daily totals against RDI targets (protein 50g, carbs 250g…).
-* **Glycemic index and allergen tags** per dish — the nutrition DB
-  schema already has `aliases[]` and `category` hooks; adding a few
-  more fields and surfacing them in the UI would take an afternoon.
+### 4.5 Forgiving nutrition lookup
 
-### 4.7 Deployment
+The classifier outputs `"biryani"`. The vision LLM might return
+`"Hyderabadi Dum Biryani"` or `"Biryani Plate"` or
+`"chicken_biryani"`. All of those need to resolve to the same row in
+the nutrition DB. Solved with a four-step matcher: normalise → direct
+key → alias → substring → token overlap. It's 40 lines of Python
+and runs in O(n) over 50 entries, which is instant.
 
-* **Dockerfile + docker-compose.yml** for the backend (uvicorn +
-  gunicorn workers) and the frontend (`nginx` serving static build).
-* **CI**: GitHub Actions job that runs `tsc --noEmit`, `ruff`, and
-  `pytest` on every push.
-* **Model registry**: keep `best_model.pth` in GitHub Releases or
-  HuggingFace Hub rather than `.gitignore`-ing it, so new contributors
-  can pull a working checkpoint without having to train from scratch.
+### 4.6 CORS and pydantic-settings JSON decoding
+
+Small one but it bit me: pydantic-settings tries to JSON-decode
+`List[str]` fields when it reads them from an env file, which means
+my comma-separated `ALLOWED_ORIGINS=a,b,c` string fails parsing
+before my `@field_validator(mode="before")` gets a chance to split
+it. Fix: declared the field as a plain `str` on the Settings model
+and exposed `cors_origins() -> list[str]` as a helper method that
+main.py calls when wiring up the CORS middleware. Small friction
+but a good reminder that the "typed settings" abstraction isn't
+infallible.
+
+### 4.7 Secrets hygiene
+
+Everyone's first instinct is to paste an API key into `.env.example`
+to "remember it for next time." That file gets committed. I made
+sure of three things:
+
+- `backend/.env.example` has only empty placeholders
+- `backend/.env` (with real secrets) is gitignored, plus
+  `.env.*` with an `!.env.example` negation
+- No provider identifiers (model names, endpoint URLs, header
+  names) live in committed Python — they're all loaded from env
+  vars with empty defaults
 
 ---
 
-## Appendix — How to run (tl;dr)
+## 5. Possible improvements
+
+### 5.1 A bigger and more balanced dataset
+
+The biggest single lever. With 1000+ images per class I'd expect
+top-1 accuracy to move from ~85% to ~92% without any architectural
+changes. Class balance matters too — `paani_puri` has 85 training
+images vs `chole_bhature`'s 260. Weighted sampling
+(`WeightedRandomSampler`) would flatten that.
+
+### 5.2 Stronger model + training tricks
+
+Cheap wins I'd stack on top of the current trainer:
+
+- **EfficientNet-B3 or ConvNeXt-Tiny** with longer training
+- **Label smoothing** (`CrossEntropyLoss(label_smoothing=0.1)`) — a
+  cheap 1–2% bump for visually-similar classes
+- **Test-time augmentation** — average predictions across 5 crops +
+  horizontal flip at inference. Slower but more accurate.
+- **Mixup / CutMix** during training for better generalisation
+
+### 5.3 Real multi-item detection (the single-item fix)
+
+This is the improvement I'd prioritise above everything else.
+Instead of classifying the whole image as one dish, run a **YOLOv8
+or Detectron2 model fine-tuned on an Indian-food detection dataset
+with bounding boxes**. Each detected region gets its own crop, each
+crop gets classified, and the prediction service aggregates.
+
+This removes the need for the vision LLM layer for multi-item plates
+and moves that capability fully in-house. It's also the path to
+real portion estimation — once you have a bounding box, you can
+estimate area → volume with depth models (next point).
+
+### 5.4 Image-based portion estimation
+
+Right now portion sizes come from the nutrition DB's
+`typical_serving_g` field or an LLM guess. A rigorous version would:
+
+- Use a **reference object** (plate edge, spoon, fork) to calibrate
+  image-to-real-world scale
+- Run **monocular depth estimation** (MiDaS, Depth-Anything) to
+  estimate food volume → weight
+
+Active research area, would make a great follow-up project.
+
+### 5.5 Observability + feedback loop
+
+- **Prometheus metrics** from FastAPI: per-layer hit rate, latency
+  histograms, prediction confidence distributions
+- **User feedback**: a "this is wrong, it's actually X" button on the
+  frontend that logs the image + correction. Periodic retraining
+  picks up the new labels. This is how the system gets better in
+  production instead of drifting.
+
+### 5.6 Frontend
+
+- **Progressive Web App** — install to home screen, works offline
+  with the custom model exported to ONNX + `onnxruntime-web`. Users
+  could scan food at a restaurant with zero server round-trip.
+- **Meal planning** — group scans into breakfast/lunch/dinner, show
+  daily totals against RDI targets.
+- **Glycemic index + allergen tags** — the nutrition DB schema
+  already has hooks for this (`category`, `aliases`). Adding a few
+  more fields and surfacing them in the UI is an afternoon.
+
+### 5.7 Deployment and CI
+
+- **GitHub Actions**: `pytest` + `tsc --noEmit` on every push
+- **Model registry**: push `best_model.pth` to GitHub Releases or
+  HuggingFace Hub so contributors can pull a working checkpoint
+  without training from scratch
+- **Kubernetes manifests** for scale-out deployment (optional, but
+  the Docker image already makes this trivial)
+
+---
+
+## Appendix — How to run it in 30 seconds
 
 ```bash
-# backend
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # (optional) add AI_VISION_API_KEY to enable the vision LLM layer
-uvicorn app.main:app --reload --port 8000
-
-# frontend (new terminal)
-cd frontend
-npm install
-npm run dev
+git clone https://github.com/Gaurang154/indian-food-vision
+cd indian-food-vision
+make install
+make dev
 # open http://localhost:5173
-
-# training
-cd backend
-python training/train.py --epochs 15 --batch-size 32
 ```
 
-Full setup, architecture diagram and API reference live in
+Full setup, architecture diagram, and API reference live in
 [`README.md`](./README.md).
+
+To train on your own images:
+
+```bash
+# Drop images into train/<class_name>/*.jpg and val/<class_name>/*.jpg
+make train
+```
+
+To run the test suite:
+
+```bash
+make test
+# 21 passed in 1.09s
+```
+
+To deploy via Docker:
+
+```bash
+make docker-up
+curl http://localhost:8000/api/health
+```
+
+---
+
+<div align="center">
+
+Built solo, end-to-end, over a focused sprint.
+Happy to walk through any design decision in person.
+
+**— Gaurang**
+
+</div>

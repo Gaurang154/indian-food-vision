@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: indian-food-vision:latest
+    container_name: ifv-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # All config is optional — leave AI_VISION_API_KEY unset to run
+      # the local classifier + CLIP fallback without the vision LLM.
+      - AI_VISION_API_KEY=${AI_VISION_API_KEY:-}
+      - AI_VISION_MODEL=${AI_VISION_MODEL:-}
+      - AI_VISION_ENDPOINT=${AI_VISION_ENDPOINT:-}
+      - AI_VISION_API_VERSION=${AI_VISION_API_VERSION:-}
+      - AI_VISION_API_VERSION_HEADER=${AI_VISION_API_VERSION_HEADER:-}
+      - USE_CLIP_FALLBACK=${USE_CLIP_FALLBACK:-true}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+    volumes:
+      # Persist trained checkpoints across container rebuilds
+      - ./backend/checkpoints:/app/checkpoints
+    restart: unless-stopped
