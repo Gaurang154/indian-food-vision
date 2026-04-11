@@ -1,0 +1,97 @@
+# ---------------------------------------------------------------------------
+# OS / editors
+# ---------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+*.swn
+*.log
+backend/backend.log
+
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+ENV/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---------------------------------------------------------------------------
+# Node / frontend
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+build/
+.cache/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# ML artefacts
+# ---------------------------------------------------------------------------
+backend/checkpoints/*.pth
+backend/checkpoints/*.pt
+backend/checkpoints/*.bin
+backend/checkpoints/*.safetensors
+!backend/checkpoints/.gitkeep
+runs/
+wandb/
+lightning_logs/
+*.onnx
+*.tflite
+
+# ---------------------------------------------------------------------------
+# Hugging Face model cache (CLIP)
+# ---------------------------------------------------------------------------
+.huggingface/
+hf_cache/
+transformers_cache/
+
+# ---------------------------------------------------------------------------
+# Dataset images — kept out of the repo (>1.5 GB). See SUBMISSION.md for
+# download instructions. The nutrition CSV (Indian_Food_DF.csv) and the
+# List of Indian Foods.txt are small enough to keep.
+# Leading slashes anchor these to the project root so the (empty)
+# backend/data/train and backend/data/val scaffold folders still work.
+# ---------------------------------------------------------------------------
+/train/
+/val/
+/Indian Food Images/
+
+# Portable Node.js toolchain (local dev only)
+.node/
+
+# Frontend build cache
+frontend/.vite/
+frontend/dist/
