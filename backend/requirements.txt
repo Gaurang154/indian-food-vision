@@ -5,13 +5,13 @@ pillow==10.4.0
 pydantic==2.9.2
 pydantic-settings==2.6.1
 python-dotenv==1.0.1
-numpy==1.26.4
+numpy>=1.26.4
 
 # Local model + zero-shot classifier.
-torch==2.4.1
-torchvision==0.19.1
-transformers==4.45.2
-tokenizers>=0.22.0,<=0.23.0
+torch>=2.4.1
+torchvision>=0.19.1
+transformers>=4.45.2
+tokenizers>=0.22.0
 tqdm==4.66.5
 
 # HTTP client used by the optional vision-LLM enhancement.
