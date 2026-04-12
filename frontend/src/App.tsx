@@ -178,7 +178,16 @@ export default function App() {
   return (
     <div className="relative min-h-screen overflow-x-hidden pb-24">
       {/* Background grid overlay */}
-      <div className="pointer-events-none fixed inset-0 -z-10 opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_85%)] bg-grid-fade bg-grid" />
+      <div className="pointer-events-none fixed inset-0 -z-10 opacity-30 [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_85%)] bg-grid-fade bg-grid" />
+
+      {/* Floating neo-brutal geometric decorators */}
+      <div className="pointer-events-none fixed inset-0 -z-[5] overflow-hidden">
+        <div className="absolute -left-16 top-32 h-36 w-36 rotate-12 rounded-2xl border-2 border-neon-purple/[0.08] opacity-60 animate-float" />
+        <div className="absolute -right-12 top-64 h-28 w-28 rounded-full border-2 border-neon-pink/[0.07] opacity-50 animate-float-slow" />
+        <div className="absolute left-1/4 top-20 h-20 w-20 rotate-45 border-2 border-neon-cyan/[0.06] opacity-40 animate-float-delay" />
+        <div className="absolute right-1/3 top-96 h-14 w-14 rounded-lg border-2 border-neon-lime/[0.05] opacity-30 animate-float" />
+        <div className="absolute -left-8 bottom-1/3 h-24 w-24 rotate-[30deg] rounded-xl border-2 border-neon-purple/[0.06] opacity-40 animate-float-slow" />
+      </div>
 
       <Header
         historyCount={history.length}
@@ -192,24 +201,29 @@ export default function App() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-white/70 backdrop-blur-xl"
+            className="mb-5 inline-flex items-center gap-2 rounded-full border-[1.5px] border-neon-purple/25 bg-neon-purple/[0.08] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white/80 backdrop-blur-xl"
+            style={{ boxShadow: "3px 3px 0px rgba(139, 92, 246, 0.15)" }}
           >
-            <Sparkles className="h-3.5 w-3.5 text-accent-purple" />
+            <Sparkles className="h-3.5 w-3.5 text-neon-purple" />
             Powered by EfficientNet · CLIP · AI Vision
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.05 }}
-            className="font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
+            className="font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl"
           >
-            <span className="text-gradient">Indian Food Vision AI</span>
+            <span className="text-gradient">Indian Food</span>
+            <br />
+            <span className="text-white">
+              Vision <span className="text-highlight">AI</span>
+            </span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.1 }}
-            className="mx-auto mt-5 max-w-2xl text-base text-white/60 sm:text-lg"
+            className="mx-auto mt-5 max-w-2xl text-base text-white/55 sm:text-lg"
           >
             Snap or upload a plate of food and get instant dish recognition,
             confidence scores, and a full macro-nutrition breakdown — optimised
@@ -220,7 +234,7 @@ export default function App() {
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.18 }}
-            className="mt-6 flex flex-wrap items-center justify-center gap-2"
+            className="mt-7 flex flex-wrap items-center justify-center gap-2"
           >
             {health.status === "loading" ? (
               <span className="badge text-white/50">
@@ -234,7 +248,12 @@ export default function App() {
               </span>
             ) : (
               <>
-                <span className="badge border-emerald-500/30 bg-emerald-500/10 text-emerald-200">
+                <span
+                  className="badge border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                  style={{
+                    boxShadow: "2px 2px 0px rgba(16, 185, 129, 0.15)",
+                  }}
+                >
                   <Wifi className="h-3.5 w-3.5" />
                   Backend online · v{health.data.version}
                 </span>
@@ -243,13 +262,21 @@ export default function App() {
                     key={badge.key}
                     className={`badge ${
                       badge.active
-                        ? "border-accent-purple/40 bg-accent-purple/10 text-accent-purple"
+                        ? "border-neon-purple/30 bg-neon-purple/10 text-neon-purple"
                         : "text-white/40"
                     }`}
+                    style={
+                      badge.active
+                        ? {
+                            boxShadow:
+                              "2px 2px 0px rgba(139, 92, 246, 0.12)",
+                          }
+                        : undefined
+                    }
                   >
                     <span
                       className={`h-1.5 w-1.5 rounded-full ${
-                        badge.active ? "bg-accent-purple" : "bg-white/30"
+                        badge.active ? "bg-neon-purple" : "bg-white/30"
                       }`}
                     />
                     {badge.label}
@@ -262,13 +289,18 @@ export default function App() {
 
         {/* Tabs */}
         <section className="mb-6 flex justify-center">
-          <div className="glass flex items-center gap-1 rounded-2xl p-1 text-sm font-medium">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="neo-card-static flex items-center gap-1.5 rounded-2xl p-1.5 text-sm font-bold"
+          >
             <button
               onClick={() => setTab("upload")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 transition-all duration-200 ${
+              className={`flex items-center gap-2 rounded-xl px-6 py-3 transition-all duration-200 ${
                 tab === "upload"
-                  ? "bg-white/10 text-white shadow-inner-glow"
-                  : "text-white/60 hover:text-white"
+                  ? "border-2 border-neon-purple/30 bg-neon-purple/15 text-white shadow-brutal-sm"
+                  : "border-2 border-transparent text-white/55 hover:text-white hover:bg-white/[0.04]"
               }`}
             >
               <ImageUp className="h-4 w-4" />
@@ -276,16 +308,16 @@ export default function App() {
             </button>
             <button
               onClick={() => setTab("camera")}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 transition-all duration-200 ${
+              className={`flex items-center gap-2 rounded-xl px-6 py-3 transition-all duration-200 ${
                 tab === "camera"
-                  ? "bg-white/10 text-white shadow-inner-glow"
-                  : "text-white/60 hover:text-white"
+                  ? "border-2 border-neon-purple/30 bg-neon-purple/15 text-white shadow-brutal-sm"
+                  : "border-2 border-transparent text-white/55 hover:text-white hover:bg-white/[0.04]"
               }`}
             >
               <CameraIcon className="h-4 w-4" />
               Camera
             </button>
-          </div>
+          </motion.div>
         </section>
 
         {/* Input + result grid */}
@@ -295,10 +327,15 @@ export default function App() {
               {tab === "upload" ? (
                 <motion.div
                   key="upload"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                  transition={{
+                    duration: 0.3,
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 30,
+                  }}
                 >
                   <ImageUploader
                     disabled={isPredicting}
@@ -308,10 +345,15 @@ export default function App() {
               ) : (
                 <motion.div
                   key="camera"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                  transition={{
+                    duration: 0.3,
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 30,
+                  }}
                 >
                   <CameraCapture
                     disabled={isPredicting}
@@ -323,13 +365,16 @@ export default function App() {
 
             {error && (
               <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="glass mt-4 flex items-start gap-3 rounded-2xl border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100"
+                initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-red-500/30 bg-red-500/[0.08] p-4 text-sm text-red-100 backdrop-blur-xl"
+                style={{
+                  boxShadow: "4px 4px 0px rgba(220, 38, 38, 0.15)",
+                }}
               >
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold">Prediction failed</p>
+                  <p className="font-bold">Prediction failed</p>
                   <p className="mt-0.5 text-red-200/80">{error}</p>
                 </div>
               </motion.div>
@@ -337,25 +382,52 @@ export default function App() {
           </div>
 
           <div className="lg:col-span-3">
-            {isPredicting ? (
-              <LoadingSpinner />
-            ) : currentResult && currentImage ? (
-              <ResultCard
-                image={currentImage}
-                response={currentResult}
-              />
-            ) : (
-              <EmptyState />
-            )}
+            <AnimatePresence mode="wait">
+              {isPredicting ? (
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <LoadingSpinner />
+                </motion.div>
+              ) : currentResult && currentImage ? (
+                <motion.div
+                  key="result"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ResultCard image={currentImage} response={currentResult} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <EmptyState />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </section>
 
-        <footer className="mt-20 flex flex-col items-center gap-2 text-xs text-white/40">
+        <footer className="mt-20 flex flex-col items-center gap-2 text-xs text-white/35">
           <p>
-            API · <span className="font-mono text-white/60">{getApiBaseUrl()}</span>
+            API ·{" "}
+            <span className="font-mono font-medium text-white/55">
+              {getApiBaseUrl()}
+            </span>
           </p>
           <p>
-            Built with FastAPI · PyTorch · CLIP · Vision LLM · React · Vite · Tailwind
+            Built with FastAPI · PyTorch · CLIP · Vision LLM · React · Vite ·
+            Tailwind
           </p>
         </footer>
       </main>
@@ -369,15 +441,16 @@ export default function App() {
         onClear={handleClearHistory}
       />
 
-      {/* Floating history trigger (mobile-friendly) */}
+      {/* Floating history trigger (mobile) */}
       <button
         onClick={() => setHistoryOpen(true)}
-        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-medium text-white/90 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-white/[0.14] lg:hidden"
+        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-xl border-2 border-white/[0.12] bg-white/[0.06] px-4 py-3 text-sm font-bold text-white/90 backdrop-blur-xl transition-all duration-150 hover:border-white/20 hover:bg-white/[0.1] hover:-translate-x-px hover:-translate-y-px active:translate-x-[2px] active:translate-y-[2px] lg:hidden"
+        style={{ boxShadow: "4px 4px 0px rgba(139, 92, 246, 0.2)" }}
         aria-label="Open history drawer"
       >
         <HistoryIcon className="h-4 w-4" />
         {history.length > 0 && (
-          <span className="rounded-full bg-accent-purple/30 px-2 py-0.5 text-xs font-semibold text-accent-purple">
+          <span className="rounded-full border-[1.5px] border-neon-purple/40 bg-neon-purple/20 px-2 py-0.5 text-xs font-bold text-neon-purple">
             {history.length}
           </span>
         )}
@@ -388,14 +461,17 @@ export default function App() {
 
 function EmptyState() {
   return (
-    <div className="glass flex h-full min-h-[360px] flex-col items-center justify-center rounded-3xl p-10 text-center">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-purple/30 via-accent-pink/20 to-accent-cyan/20">
-        <Sparkles className="h-7 w-7 text-accent-purple" />
+    <div className="neo-card-static glow-border flex h-full min-h-[360px] flex-col items-center justify-center rounded-3xl p-10 text-center">
+      <div
+        className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-neon-purple/20 bg-gradient-to-br from-neon-purple/20 via-neon-pink/15 to-neon-cyan/15"
+        style={{ boxShadow: "3px 3px 0px rgba(139, 92, 246, 0.15)" }}
+      >
+        <Sparkles className="h-7 w-7 text-neon-purple" />
       </div>
-      <h3 className="font-display text-xl font-semibold text-white">
+      <h3 className="font-display text-xl font-bold text-white">
         Ready when you are
       </h3>
-      <p className="mt-2 max-w-sm text-sm text-white/50">
+      <p className="mt-2 max-w-sm text-sm text-white/45">
         Drop a food image on the left or use the camera tab to see real-time
         dish recognition and a full macro-nutrition breakdown.
       </p>

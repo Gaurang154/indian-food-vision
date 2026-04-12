@@ -10,7 +10,10 @@ interface CameraCaptureProps {
 
 type FacingMode = "user" | "environment";
 
-export default function CameraCapture({ disabled, onCapture }: CameraCaptureProps) {
+export default function CameraCapture({
+  disabled,
+  onCapture,
+}: CameraCaptureProps) {
   const webcamRef = useRef<Webcam>(null);
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +46,11 @@ export default function CameraCapture({ disabled, onCapture }: CameraCaptureProp
   };
 
   return (
-    <div className="glass glow-border flex min-h-[360px] flex-col gap-4 rounded-3xl p-5">
-      <div className="relative overflow-hidden rounded-2xl bg-black">
+    <div className="neo-card-static glow-border flex min-h-[360px] flex-col gap-4 rounded-3xl p-5">
+      <div
+        className="relative overflow-hidden rounded-2xl border-2 border-white/[0.08] bg-black"
+        style={{ boxShadow: "3px 3px 0px rgba(0,0,0,0.3)" }}
+      >
         {lastShot ? (
           <img
             src={lastShot}
@@ -70,7 +76,7 @@ export default function CameraCapture({ disabled, onCapture }: CameraCaptureProp
         )}
 
         {!lastShot && !error && (
-          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/15" />
+          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-inset ring-white/[0.06]" />
         )}
       </div>
 
@@ -106,7 +112,10 @@ export default function CameraCapture({ disabled, onCapture }: CameraCaptureProp
       </div>
 
       {error && (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs text-red-200">
+        <p
+          className="rounded-xl border-2 border-red-500/30 bg-red-500/[0.08] px-4 py-2 text-xs font-medium text-red-200"
+          style={{ boxShadow: "3px 3px 0px rgba(220,38,38,0.12)" }}
+        >
           {error}
         </p>
       )}
