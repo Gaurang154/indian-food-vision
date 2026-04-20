@@ -60,7 +60,7 @@ pnpm-debug.log*
 # ---------------------------------------------------------------------------
 # ML artefacts
 # ---------------------------------------------------------------------------
-backend/checkpoints/*.pth
+backend/checkpoints/last.pth
 backend/checkpoints/*.pt
 backend/checkpoints/*.bin
 backend/checkpoints/*.safetensors

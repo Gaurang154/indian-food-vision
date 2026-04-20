@@ -13,9 +13,14 @@ Run from the backend/ directory:
 
     python training/train.py --epochs 15 --batch-size 32
 
-Writes two artefacts that the backend auto-loads on its next restart:
+Resume a stopped run (picks up from last completed epoch):
 
-    checkpoints/best_model.pth
+    python training/train.py --resume --epochs 15
+
+Writes artefacts that the backend auto-loads on its next restart:
+
+    checkpoints/best_model.pth   ← best val_acc weights (used by backend)
+    checkpoints/last.pth         ← full training state for resuming
     app/data/class_map.json
 """
 from __future__ import annotations
@@ -59,6 +64,9 @@ IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
+RESUME_CHECKPOINT = "last.pth"  # always-latest full training state
+
+
 @dataclass
 class TrainConfig:
     """All hyperparameters in one place for clean dataclass passing."""
@@ -77,6 +85,7 @@ class TrainConfig:
     device: str
     seed: int
     freeze_backbone: bool
+    resume: bool  # if True, load last.pth and continue from saved epoch
 
 
 def parse_args(argv: Optional[List[str]] = None) -> TrainConfig:
@@ -112,6 +121,11 @@ def parse_args(argv: Optional[List[str]] = None) -> TrainConfig:
         action="store_true",
         help="Only train the final classifier layer (much faster, slightly lower accuracy).",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume training from checkpoints/last.pth (continues from last completed epoch).",
+    )
 
     args = parser.parse_args(argv)
     return TrainConfig(
@@ -129,6 +143,7 @@ def parse_args(argv: Optional[List[str]] = None) -> TrainConfig:
         device=args.device,
         seed=args.seed,
         freeze_backbone=args.freeze_backbone,
+        resume=args.resume,
     )
 
 
@@ -317,6 +332,63 @@ def save_artifacts(
     logger.info("Saved class map → %s", class_map_path)
 
 
+def save_resume_checkpoint(
+    checkpoint_dir: Path,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler._LRScheduler,
+    classes: List[str],
+    epoch: int,
+    best_val_acc: float,
+) -> None:
+    """Save full training state to last.pth so training can be resumed later."""
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    path = checkpoint_dir / RESUME_CHECKPOINT
+    torch.save(
+        {
+            "epoch": epoch,               # last completed epoch (0-indexed)
+            "best_val_acc": best_val_acc,
+            "classes": classes,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "scheduler_state_dict": scheduler.state_dict(),
+        },
+        path,
+    )
+    logger.info("Resume checkpoint saved → %s  (epoch %d done)", path, epoch + 1)
+
+
+def load_resume_checkpoint(
+    checkpoint_dir: Path,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler._LRScheduler,
+    device: torch.device,
+) -> Tuple[int, float, List[str]]:
+    """Load last.pth and restore model/optimizer/scheduler state.
+
+    Returns (start_epoch, best_val_acc, classes).
+    """
+    path = checkpoint_dir / RESUME_CHECKPOINT
+    if not path.exists():
+        raise FileNotFoundError(
+            f"No resume checkpoint found at {path}. "
+            "Run without --resume to start fresh."
+        )
+    data = torch.load(path, map_location=device)
+    model.load_state_dict(data["model_state_dict"])
+    optimizer.load_state_dict(data["optimizer_state_dict"])
+    scheduler.load_state_dict(data["scheduler_state_dict"])
+    start_epoch = data["epoch"] + 1        # resume from the NEXT epoch
+    best_val_acc = data["best_val_acc"]
+    classes = data["classes"]
+    logger.info(
+        "Resumed from %s — starting at epoch %d, best_val_acc=%.4f",
+        path, start_epoch + 1, best_val_acc,
+    )
+    return start_epoch, best_val_acc, classes
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     config = parse_args(argv)
 
@@ -331,6 +403,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     train_loader, val_loader, classes = build_dataloaders(config)
     logger.info("Classes: %s", ", ".join(classes))
 
+    checkpoint_dir = config.checkpoint_path.parent
+
     model = build_model(len(classes), config.freeze_backbone, device)
     criterion = nn.CrossEntropyLoss()
     params = [p for p in model.parameters() if p.requires_grad]
@@ -341,14 +415,36 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.epochs)
 
+    start_epoch = 0
     best_val_acc = 0.0
-    for epoch in range(config.epochs):
+
+    if config.resume:
+        start_epoch, best_val_acc, classes = load_resume_checkpoint(
+            checkpoint_dir, model, optimizer, scheduler, device
+        )
+
+    epochs_remaining = config.epochs - start_epoch
+    if epochs_remaining <= 0:
+        logger.info(
+            "Already completed %d epochs (target=%d). "
+            "Increase --epochs or start fresh without --resume.",
+            start_epoch, config.epochs,
+        )
+        return 0
+
+    logger.info(
+        "Training epochs %d–%d (target=%d)",
+        start_epoch + 1, config.epochs, config.epochs,
+    )
+
+    for epoch in range(start_epoch, config.epochs):
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device, epoch)
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
         scheduler.step()
         logger.info(
-            "epoch %02d  train_loss=%.4f train_acc=%.4f  val_loss=%.4f val_acc=%.4f",
+            "epoch %02d/%02d  train_loss=%.4f train_acc=%.4f  val_loss=%.4f val_acc=%.4f",
             epoch + 1,
+            config.epochs,
             train_loss,
             train_acc,
             val_loss,
@@ -357,7 +453,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             save_artifacts(model, classes, config.checkpoint_path, config.class_map_path)
-            logger.info("  ↳ new best val_acc=%.4f (checkpoint updated)", val_acc)
+            logger.info("  ↳ new best val_acc=%.4f (best_model.pth updated)", val_acc)
+
+        # Always save full state after every epoch so we can resume anytime
+        save_resume_checkpoint(
+            checkpoint_dir, model, optimizer, scheduler,
+            classes, epoch, best_val_acc,
+        )
 
     logger.info("Training complete. Best val_acc=%.4f", best_val_acc)
     return 0
