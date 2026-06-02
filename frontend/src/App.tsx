@@ -16,6 +16,7 @@ import HistoryDrawer from "./components/HistoryDrawer";
 import ImageUploader from "./components/ImageUploader";
 import LoadingSpinner from "./components/LoadingSpinner";
 import ResultCard from "./components/ResultCard";
+import VoiceButton from "./components/VoiceButton";
 import {
   ApiRequestError,
   dataUrlToFile,
@@ -207,6 +208,8 @@ export default function App() {
             )}
           </motion.div>
         </section>
+
+        <VoiceButton imageUrl={currentImage} result={currentResult} />
 
         {/* Tabs — polymorphic: active = black fill, white text */}
         <section className="mb-6 flex justify-center">

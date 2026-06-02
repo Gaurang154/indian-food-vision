@@ -54,6 +54,21 @@ class Settings(BaseSettings):
         default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
     )
 
+    # Voice assistant providers.
+    groq_api_key: Optional[str] = Field(default=None)
+    openai_api_key: Optional[str] = Field(default=None)
+    sarvam_api_key: Optional[str] = Field(default=None)
+    elevenlabs_api_key: Optional[str] = Field(default=None)
+    chroma_persist_dir: str = Field(default="app/data/chroma_store")
+    default_tts_language: str = Field(default="en")
+    voice_session_ttl_minutes: int = Field(default=30, ge=1, le=24 * 60)
+    max_history_turns: int = Field(default=6, ge=1, le=20)
+    groq_llm_model: str = Field(default="llama-3.3-70b-versatile")
+    groq_stt_model: str = Field(default="whisper-large-v3-turbo")
+    openai_vision_model: str = Field(default="gpt-4o-mini")
+    openai_embedding_model: str = Field(default="text-embedding-3-small")
+    elevenlabs_voice_id: str = Field(default="21m00Tcm4TlvDq8ikWAM")
+
     def cors_origins(self) -> List[str]:
         """Return the allowed origins as a parsed list of strings."""
         return [item.strip() for item in self.allowed_origins.split(",") if item.strip()]

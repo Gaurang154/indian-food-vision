@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from . import __version__
 from .config import settings
 from .routers import predict as predict_router
+from .routers import voice as voice_router
 from .schemas import HealthResponse
 
 logging.basicConfig(
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(predict_router.router, prefix="/api", tags=["prediction"])
+    app.include_router(voice_router.router, prefix="/api", tags=["voice"])
 
     @app.get("/", tags=["meta"])
     def root() -> dict:
@@ -47,7 +49,7 @@ def create_app() -> FastAPI:
             "name": "Indian Food Vision AI",
             "version": __version__,
             "docs": "/docs",
-            "endpoints": ["/api/health", "/api/predict"],
+            "endpoints": ["/api/health", "/api/predict", "/api/voice/query"],
         }
 
     @app.get("/api/health", response_model=HealthResponse, tags=["meta"])

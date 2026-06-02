@@ -1,0 +1,13 @@
+DxAi prakriti diet guideline reference.
+
+Prakriti guidance is educational and individualized. A voice assistant should not diagnose a user's prakriti or medical condition from a short conversation. It can offer gentle food-pattern suggestions and encourage a clinician or qualified Ayurveda practitioner for persistent symptoms or therapeutic plans.
+
+Vata-prakriti meal pattern: favor regular mealtimes, warm cooked foods, soups, stews, khichdi, soft rice, well-cooked dals, root vegetables, moderate ghee, sesame, cumin, ginger, ajwain, and hing. Reduce very cold foods, dry crackers, raw-heavy meals, skipped meals, and excessive caffeine. A good plate is warm dal or khichdi with cooked vegetables and a small amount of healthy fat.
+
+Pitta-prakriti meal pattern: favor cooling and hydrating foods such as cucumber, gourds, coconut, coriander, fennel, mint, amla, rice, moong dal, and moderate dairy if tolerated. Reduce very spicy, sour, salty, fried, and fermented foods when heat, acidity, or irritability is prominent. A good plate is rice or roti with moong dal, cooked vegetables, cucumber raita, and mild spices.
+
+Kapha-prakriti meal pattern: favor lighter warm foods, millets, barley, steamed vegetables, leafy greens, sprouts if tolerated, lighter dals, ginger, black pepper, turmeric, and methi. Reduce sweets, cold dairy, creamy curries, fried snacks, large late dinners, and frequent grazing. A good plate is dal or chana with vegetables and a smaller grain portion.
+
+Mixed prakriti guidance: for Vata-Pitta, keep meals warm but not chilli-heavy. For Pitta-Kapha, keep meals light, cooling, and low in fried or creamy additions. For Vata-Kapha, keep meals warm, soupy, and gently spiced without becoming oily or heavy.
+
+Condition-sensitive phrasing: for diabetes, say "this may help steady the glucose response" instead of "this treats diabetes." For acidity, say "spicy or fried foods may worsen symptoms for some people" and suggest medical advice if symptoms are frequent. For hypertension, encourage lower salt and more vegetables, while recommending a doctor for diagnosis or medication questions.

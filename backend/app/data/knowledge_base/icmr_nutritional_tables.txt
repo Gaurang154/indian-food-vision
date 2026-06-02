@@ -1,0 +1,17 @@
+DxAi modern nutrition reference for Indian foods.
+
+This prototype reference summarizes common Indian nutrition patterns for conversational guidance. For clinical use, verify exact values against official Indian Food Composition Tables and package or recipe-specific data because ingredients, oil, sugar, and serving size change nutrition substantially.
+
+Cereal foods: cooked rice, pulao, biryani, idli, dosa, poha, upma, and paratha are usually carbohydrate-forward. Rice-based meals can raise post-meal glucose more quickly when eaten alone; pairing with dal, curd, paneer, eggs, vegetables, or salad can improve satiety and reduce the glycemic load of the meal.
+
+Pulse and dal foods: moong dal, chana, rajma, chole, sambar, dal tadka, and dal makhani provide plant protein, fiber, potassium, magnesium, and resistant starch. Creamy or fried preparations can add saturated fat and calories. Lentil-based foods usually have a lower glycemic effect than refined-flour foods, but portion size still matters for diabetes or weight management.
+
+Milk and paneer foods: paneer, curd, lassi, raita, and milk-based sweets provide protein and calcium. Paneer curries can be protein-rich but may become calorie-dense when cooked with butter, cream, cashew paste, or excess oil. Sweet lassi, rabri, gulab jamun, rasgulla, and kulfi are high-sugar foods best kept occasional.
+
+Vegetable and spice foods: cooked vegetables, leafy greens, gourds, beans, carrots, cauliflower, and tomatoes add fiber, potassium, carotenoids, folate, and volume with relatively low calories. Turmeric, ginger, garlic, cumin, coriander, cinnamon, methi, and black pepper can support flavor and reduce reliance on excess salt, sugar, or oil.
+
+Fried and street foods: samosa, pakode, kachori, bhature, puri, sev, and chips can be high in oil and refined carbohydrates. They are best balanced with protein, water, and a lighter next meal rather than paired with additional fried items or sweet drinks.
+
+Approximate serving anchors used in Indian Food Vision: biryani 300 g; dal makhani 200 g; chapati 40 g; butter naan 90 g; idli 120 g for a typical plate; masala dosa 250 g; chole bhature 300 g; pav bhaji 250 g; samosa 100 g; paneer curry 200 g; chai 180 g. These are not prescriptions, only estimation anchors for nutrition scaling.
+
+Blood sugar guidance: emphasize total carbohydrate amount, fiber, protein, fat quality, and meal sequencing. A practical spoken suggestion is to start with salad or dal, keep rice or roti portions measured, avoid sweet drinks, and take a short walk after meals when appropriate.

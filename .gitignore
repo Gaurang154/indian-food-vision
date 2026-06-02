@@ -65,6 +65,7 @@ backend/checkpoints/*.pt
 backend/checkpoints/*.bin
 backend/checkpoints/*.safetensors
 !backend/checkpoints/.gitkeep
+backend/app/data/chroma_store/
 runs/
 wandb/
 lightning_logs/
@@ -95,3 +96,9 @@ transformers_cache/
 # Frontend build cache
 frontend/.vite/
 frontend/dist/
+
+# Presentation and report files (local-only)
+Background_Video.mp4
+Indian_Food_Vision_Professional_Report.docx
+architecture.html
+presentation.html

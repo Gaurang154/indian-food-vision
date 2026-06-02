@@ -1,7 +1,7 @@
 """Pydantic schemas for API requests and responses."""
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -73,3 +73,60 @@ class ErrorResponse(BaseModel):
     success: bool = False
     error: str
     detail: Optional[str] = None
+
+
+class VoiceTranscriptionResponse(BaseModel):
+    """Speech-to-text response."""
+
+    success: bool = True
+    text: str
+    language: str = "en"
+
+
+class VoiceQueryRequest(BaseModel):
+    """Text query sent to the voice assistant."""
+
+    text: str = Field(..., min_length=1)
+    session_id: Optional[str] = None
+    image_url: Optional[str] = None
+    language: str = "en"
+    page_context: Optional[Dict[str, Any]] = None
+
+
+class VoiceQueryResponse(BaseModel):
+    """Assistant text response plus session metadata."""
+
+    success: bool = True
+    session_id: str
+    text: str
+    tools_used: List[str] = Field(default_factory=list)
+    nutrition: Optional[Dict[str, Any]] = None
+
+
+class VoiceSpeakRequest(BaseModel):
+    """Text-to-speech request."""
+
+    text: str = Field(..., min_length=1)
+    language: str = "en"
+
+
+class VoiceTurn(BaseModel):
+    """Single stored message in a voice session."""
+
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class VoiceSessionResponse(BaseModel):
+    """In-memory session history."""
+
+    session_id: str
+    turns: List[VoiceTurn]
+
+
+class VoiceToolResult(BaseModel):
+    """Structured result returned by internal voice tools."""
+
+    ok: bool
+    data: Dict[str, Any] = Field(default_factory=dict)
+    error: Optional[str] = None

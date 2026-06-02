@@ -1,0 +1,13 @@
+DxAi Ayurveda food properties knowledge base.
+
+Ayurveda describes foods through rasa (taste), guna (qualities), virya (heating or cooling potency), vipaka (post-digestive effect), and likely dosha influence. This reference is educational and should be paired with modern nutrition and individual medical advice.
+
+Vata-balancing foods are generally warm, moist, softly cooked, mildly oily, and grounding. Helpful examples include moong dal khichdi, warm rice preparations, ghee in moderate amounts, cooked carrots, cooked pumpkin, ripe banana, soaked almonds, sesame, cumin, ajwain, ginger, and soups. Foods that may aggravate Vata when overused include very dry snacks, raw salads, excess beans without spices, cold drinks, and irregular meal timing.
+
+Pitta-balancing foods are generally cooling, hydrating, mildly sweet, and not excessively spicy or sour. Helpful examples include cucumber, coconut, amla, coriander, fennel, mint, rice, milk if tolerated, moong dal, gourds, and moderate ghee. Foods that may aggravate Pitta when overused include deep-fried snacks, red chilli, excess pickles, sour curd, alcohol, and very salty packaged foods.
+
+Kapha-balancing foods are generally light, warm, dry, and gently stimulating. Helpful examples include millets, barley, steamed vegetables, sprouts if tolerated, ginger, black pepper, turmeric, methi, leafy greens, and lighter dals. Foods that may aggravate Kapha when overused include sweets, cold dairy, heavy fried foods, excess rice, creamy curries, and frequent snacking.
+
+Common Indian foods and traditional associations: dal makhani is nourishing and heavy because of urad dal, butter, and cream, so it is best in moderate portions, especially for Kapha-prone users. Khichdi made with moong dal and rice is traditionally considered light, warm, and easy to digest. Idli is fermented and steamed, usually lighter than fried snacks, though coconut chutney can increase calories. Masala dosa combines fermented batter with potato filling, giving quick energy but also a higher carbohydrate load. Turmeric is warming and traditionally associated with supporting digestion and inflammatory balance. Amla is cooling and traditionally associated with rasayana, vitamin C intake, and Pitta balance.
+
+Voice guidance style: describe Ayurveda as "traditionally associated with" or "may support"; avoid diagnosing dosha imbalance from one food or symptom. For symptoms such as severe acidity, fainting, chest pain, high fever, persistent vomiting, or uncontrolled blood sugar, recommend a qualified clinician.

@@ -71,3 +71,65 @@ export interface HistoryEntry {
   imageDataUrl: string;
   response: PredictionResponse;
 }
+
+export interface VoiceTranscriptionResponse {
+  success: boolean;
+  text: string;
+  language: string;
+}
+
+export interface VoiceQueryRequest {
+  text: string;
+  session_id?: string | null;
+  image_url?: string | null;
+  language?: string;
+  page_context?: VoicePageContext | null;
+}
+
+export interface VoiceNutritionSummary {
+  dish_name: string;
+  serving_grams: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g?: number;
+  source?: string;
+}
+
+export interface VoiceQueryResponse {
+  success: boolean;
+  session_id: string;
+  text: string;
+  tools_used: string[];
+  nutrition?: VoiceNutritionSummary | null;
+}
+
+export interface VoicePageContext {
+  dish_name: string;
+  confidence: number;
+  source: PredictionSource;
+  nutrition: VoiceNutritionSummary | null;
+  items: Array<{
+    name: string;
+    portion_g: number;
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  }>;
+  alternatives: Array<{
+    dish_name: string;
+    confidence: number;
+    source: PredictionSource;
+  }>;
+}
+
+export type VoiceStreamMessage =
+  | { type: "transcript"; text: string }
+  | { type: "text_chunk"; content: string; done: boolean }
+  | { type: "audio_chunk"; data: string; done: boolean }
+  | { type: "audio_error"; message: string }
+  | { type: "done"; session_id?: string; tools_used?: string[]; nutrition?: VoiceNutritionSummary | null }
+  | { type: "error"; message: string }
+  | { type: "ack"; content: string };
