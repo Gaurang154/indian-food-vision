@@ -1,0 +1,22 @@
+# One-click deploy to Render (https://render.com).
+# Render injects $PORT automatically; set the three secrets in the dashboard.
+services:
+  - type: web
+    name: dxai-tts-microservice
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: TTS_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: SCRIPT_CLEANING_ENABLED
+        value: "true"
+      - key: MAX_CONCURRENT_REQUESTS
+        value: "4"

@@ -1,0 +1,9 @@
+.venv/
+.env
+*.log
+*.pid
+*.mp3
+audit_*
+__pycache__/
+.pytest_cache/
+.DS_Store
